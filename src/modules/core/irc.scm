@@ -1,6 +1,7 @@
 (define-module (core irc))
 
 (use-modules (srfi srfi-9)
+	     (srfi srfi-11)
              (core init)
              (core net))
 
@@ -60,34 +61,55 @@
       (make-server str)))
 
 (define (decode-cmd str)
-  (if (string-prefix? ":" str)
-      (let* ((str (string-trim-right (substring str 1)))
-             (space-index (string-index str #\space))
-             (colon-index (string-index str #\:))
-             (origin-str (substring str 0 space-index))
-             (parts (string-split
-                     (string-trim-both
-                      (substring str
-                                space-index
-                                (or colon-index
-                                    (- (string-length str) 1))))
-                     #\space))
-             (cmd (if (not (null? parts))
-                      (car parts)
-                      #f))
-             (args (if (> (length parts) 1)
-                       (cdr parts)
-                       '()))
-             (tail (if colon-index
-                       (substring str (+ 1 colon-index))
-                       #f)))
-          (make-cmd (parse-origin origin-str) cmd args tail))
-      #f))
+  (let ((extract-origin
+	 (λ (str)
+	   (if (string-prefix? ":" str)
+	       (let* ((space-index (string-index str #\space))
+		      (colon-index (string-index str #\:))
+		      (origin-str (substring str 0 space-index))
+		      (rest-str (substring str (1+ space-index))))
+		 (values origin-str rest-str))
+	       (values #t str))))
+	(extract-cmd
+	 (λ (str)
+	   (let* ((space-index (string-index str #\space))
+		  (cmd (if space-index
+			   (substring str 0 space-index)
+			   str))
+		  (tail (if space-index
+			    (substring str (1+ space-index))
+			    #f)))
+	     (values cmd tail))))
+	(extract-args-and-tail
+	 (λ (str)
+	   (if (string-prefix? ":" str)
+	       (values #f (substring str 1))
+	       (let ((colon-index (string-index str #\:)))
+		 (if colon-index
+		     (values (string-split (substring str 0 (1- colon-index)) #\space)
+			     (substring str (1+ colon-index)))
+		     (values (string-split str #\space)
+			     #f)))))))
+    (let*-values (((origin orest) (extract-origin str))
+		  ((cmd crest) (extract-cmd orest))
+		  ((args tail) (extract-args-and-tail crest)))
+      (make-cmd origin cmd args tail))))
 
 (define (cmd->string cmd)
-  (format #f "~a ~a :~a" (cmd-name cmd)
-	                  (string-join (cmd-args cmd))
-			  (cmd-tail cmd)))
+  (let ((origin (cmd-origin cmd))
+	(name (cmd-name cmd))
+	(args (cmd-args cmd))
+	(tail (cmd-tail cmd)))
+    (string-join `(,@(if origin
+			 (list (string-append ":" origin))
+			 '())
+		   ,name
+		   ,@(if args
+			 args
+			 '())
+		   ,@(if tail
+			 (list (string-append ":" tail))
+			 '())))))
 
 (define (register sock nick mode user-name real-name)
   (display (cmd->string (make-cmd #f "NICK" '() nick)) sock)

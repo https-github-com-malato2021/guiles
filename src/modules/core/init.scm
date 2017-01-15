@@ -4,6 +4,7 @@
 	     (core hooks)
 	     (core net)
 	     (core irc)
+	     (core log)
 	     (ice-9 rdelim))
 
 (define-public *connection* #f)
@@ -21,7 +22,6 @@
 	 (when (not port)
 	   (log-error "Config does not contain port definition."))
 	 (exit-with-error "Problem with config, check logs.")))
-					;    (let ((connection (make-connection host port)))
     (set! *connection* (make-connection host port))
     (add-hook 'irc-raw
        (λ (con args)
@@ -33,7 +33,7 @@
 			     (string-append "irc-command-"
 					    (string-downcase (cmd-name cmd))))
 			    (list cmd))
-		 (format #t "Run event ~a~%" (string-append "irc-command-" (string-downcase (cmd-name cmd))))
+		 (log 'debug (format #f "Run event ~a~%" (string-append "irc-command-" (string-downcase (cmd-name cmd)))))
 		 cmd)
 	       (begin
 		 (display "Could not read command")
@@ -43,6 +43,7 @@
     (let read-loop ((line (read-line (caddr *connection*))))
       (when (not (eof-object? line))
 	(begin
+	  (log 'debug (string-append "LINE:" line))
 	  (run-event *connection* 'irc-raw (list line))
 	  (read-loop (read-line (caddr *connection*))))))))
 

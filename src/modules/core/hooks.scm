@@ -16,7 +16,7 @@
 (define (remove-hook hook handler)
   (when (lock-mutex hook-mutex)
     (begin
-      (set! hooks (delete (cons hook handler))))))
+      (set! hooks (delete (cons hook handler) hooks)))))
       
 (define (find-hooks hook)
   (lock-mutex hook-mutex)
