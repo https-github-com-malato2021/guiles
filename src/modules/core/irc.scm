@@ -121,5 +121,5 @@
   (let* ((cmd (car args))
 	 (ping-data (cmd-tail cmd))
 	 (sock (caddr con)))
-    (display (make-cmd #f "PONG" '() ping-data) sock)
+    (display (cmd->string (make-cmd #f "PONG" '() ping-data) sock))
     (newline sock)))
