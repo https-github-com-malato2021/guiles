@@ -61,35 +61,36 @@
       (make-server str)))
 
 (define (decode-cmd str)
-  (let ((extract-origin
-	 (λ (str)
-	   (if (string-prefix? ":" str)
-	       (let* ((space-index (string-index str #\space))
-		      (colon-index (string-index str #\:))
-		      (origin-str (substring str 0 space-index))
-		      (rest-str (substring str (1+ space-index))))
-		 (values origin-str rest-str))
-	       (values #t str))))
-	(extract-cmd
-	 (λ (str)
-	   (let* ((space-index (string-index str #\space))
-		  (cmd (if space-index
-			   (substring str 0 space-index)
-			   str))
-		  (tail (if space-index
-			    (substring str (1+ space-index))
-			    #f)))
-	     (values cmd tail))))
-	(extract-args-and-tail
-	 (λ (str)
-	   (if (string-prefix? ":" str)
-	       (values #f (substring str 1))
-	       (let ((colon-index (string-index str #\:)))
-		 (if colon-index
-		     (values (string-split (substring str 0 (1- colon-index)) #\space)
-			     (substring str (1+ colon-index)))
-		     (values (string-split str #\space)
-			     #f)))))))
+  (let* ((str (string-trim-right str #\linefeed))
+	 (extract-origin
+	  (λ (str)
+	    (if (string-prefix? ":" str)
+		(let* ((space-index (string-index str #\space))
+		       (colon-index (string-index str #\:))
+		       (origin-str (substring str 1 space-index))
+		       (rest-str (substring str (1+ space-index))))
+		  (values origin-str rest-str))
+		(values #t str))))
+	 (extract-cmd
+	  (λ (str)
+	    (let* ((space-index (string-index str #\space))
+		   (cmd (if space-index
+			    (substring str 0 space-index)
+			    str))
+		   (tail (if space-index
+			     (substring str (1+ space-index))
+			     #f)))
+	      (values cmd tail))))
+	 (extract-args-and-tail
+	  (λ (str)
+	    (if (string-prefix? ":" str)
+		(values #f (substring str 1))
+		(let ((colon-index (string-index str #\:)))
+		  (if colon-index
+		      (values (string-split (substring str 0 (1- colon-index)) #\space)
+			      (substring str (1+ colon-index)))
+		      (values (string-split str #\space)
+			      #f)))))))
     (let*-values (((origin orest) (extract-origin str))
 		  ((cmd crest) (extract-cmd orest))
 		  ((args tail) (extract-args-and-tail crest)))
@@ -121,5 +122,5 @@
   (let* ((cmd (car args))
 	 (ping-data (cmd-tail cmd))
 	 (sock (caddr con)))
-    (display (cmd->string (make-cmd #f "PONG" '() ping-data) sock))
+    (display (cmd->string (make-cmd #f "PONG" '() ping-data)) sock)
     (newline sock)))

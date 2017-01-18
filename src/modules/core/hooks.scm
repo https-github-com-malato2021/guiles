@@ -1,6 +1,7 @@
 (define-module (core hooks))
 
-(use-modules (ice-9 threads))
+(use-modules (ice-9 threads)
+	     (core log))
 
 (define hook-condition (make-condition-variable))
 (define hook-mutex (make-mutex 'allow-external-unlock))
@@ -16,7 +17,8 @@
 (define (remove-hook hook handler)
   (when (lock-mutex hook-mutex)
     (begin
-      (set! hooks (delete (cons hook handler) hooks)))))
+      (set! hooks (delete (cons hook handler) hooks))
+      (unlock-mutex hook-mutex))))
       
 (define (find-hooks hook)
   (lock-mutex hook-mutex)
@@ -29,9 +31,14 @@
 
 (define (run-event con hook args)
   (let ((hooks (find-hooks hook)))
-    (par-map (λ (hook-pair)
-	       ((cdr hook-pair) con args))
-	     hooks)))
+    (catch #t
+       (λ ()
+	 (par-map
+	  (λ (hook-pair)
+	    ((cdr hook-pair) con args))
+	  hooks))
+       (λ (key . args)
+	 (log 'error (format #f "Error running hook '~a': ~a" hook args))))))
 
 (export add-hook
 	remove-hook
