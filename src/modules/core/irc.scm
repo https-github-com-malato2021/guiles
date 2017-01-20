@@ -1,9 +1,27 @@
+;; Guiles, a simple IRC bot written in Guile Scheme
+;; Copyright (C) 2017 Robert Bolton
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 (define-module (core irc))
 
 (use-modules (srfi srfi-9)
 	     (srfi srfi-11)
              (core init)
-             (core net))
+             (core net)
+	     (core log)
+	     (core hooks))
 
 (export
  make-cmd cmd? cmd-origin cmd-name cmd-args cmd-tail
@@ -12,9 +30,11 @@
  make-msg msg? msg-user msg-time msg-text msg-nick
  cmd->string
  decode-cmd
+ send-cmd
  register
  ping-handler
  join
+ part
  renick)
 
 (define-record-type <cmd>
@@ -61,7 +81,7 @@
       (make-server str)))
 
 (define (decode-cmd str)
-  (let* ((str (string-trim-right str #\linefeed))
+  (let* ((str (string-trim-right str #\return))
 	 (extract-origin
 	  (λ (str)
 	    (if (string-prefix? ":" str)
@@ -69,7 +89,7 @@
 		       (colon-index (string-index str #\:))
 		       (origin-str (substring str 1 space-index))
 		       (rest-str (substring str (1+ space-index))))
-		  (values origin-str rest-str))
+		  (values (parse-origin origin-str) rest-str))
 		(values #t str))))
 	 (extract-cmd
 	  (λ (str)
@@ -111,16 +131,38 @@
 		   ,@(if tail
 			 (list (string-append ":" tail))
 			 '())))))
+(define (send-cmd cmd port)
+  (display (cmd->string cmd) port)
+  (newline port))
 
 (define (register sock nick mode user-name real-name)
-  (display (cmd->string (make-cmd #f "NICK" '() nick)) sock)
-  (newline sock)
-  (display (cmd->string (make-cmd #f "USER" (list user-name "1" "0") real-name)) sock)
-  (newline sock))
+  (send-cmd (make-cmd #f "NICK" '() nick) sock)
+  (send-cmd (make-cmd #f "USER" (list user-name "1" "0") real-name) sock))
 
-(define (ping-handler con args)
-  (let* ((cmd (car args))
-	 (ping-data (cmd-tail cmd))
+(define (join con chan)
+  (send-cmd (make-cmd #f "JOIN" (list chan) #f) (caddr con)))
+
+(define (part con chan msg)
+  (send-cmd (make-cmd #f "PART" (list chan) msg) (caddr con)))
+
+(define (raw-handler con line)
+  (let ((cmd (decode-cmd line)))
+    (if cmd
+	(begin
+	  (log 'debug (format #f "Received cmd: ~a" cmd))
+	  (run-event (string->symbol
+		    (string-append "irc-command-"
+				   (string-downcase (cmd-name cmd))))
+		     (list con cmd)))	
+	(begin
+	  (log 'debug (format #f "Failed to parse cmd: ~a" line))
+	  #f))))
+
+(define (ping-handler con cmd)
+  (let* ((ping-data (cmd-tail cmd))
 	 (sock (caddr con)))
-    (display (cmd->string (make-cmd #f "PONG" '() ping-data)) sock)
-    (newline sock)))
+    (send-cmd (make-cmd #f "PONG" '() ping-data) sock)))
+
+(define hooks
+  `((irc-raw . ,raw-handler)
+    (irc-command-ping . ,ping-handler)))
