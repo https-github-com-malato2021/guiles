@@ -1,6 +1,6 @@
-korvo
-=====
-korvo, an IRC bot.
+guiles
+======
+guiles, an IRC bot.
 Written in Guile, this bot is a work in progress.
 
 To run it, run ./main.scm
