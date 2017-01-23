@@ -35,7 +35,7 @@
  ping-handler
  join
  part
- renick
+ nick
  say)
 
 (define-record-type <cmd>
@@ -150,6 +150,10 @@
 
 (define (part con chan msg)
   (send-cmd con (make-cmd #f "PART" (list chan) msg)))
+
+(define (nick con new-nick)
+  (send-cmd con (make-cmd #f "NICK" '() new-nick))
+  (hash-set! con 'nick new-nick))
 
 (define (say con chan msg)
   (send-cmd con (make-cmd #f "PRIVMSG" (list chan) msg)))

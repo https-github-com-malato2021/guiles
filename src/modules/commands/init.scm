@@ -21,7 +21,13 @@
 	     (core log)
 	     (srfi srfi-11))
 
+(export set-cmd-str)
+
 (define *command-str* "`")
+
+(define (set-cmd-str str)
+  (when (string? str)
+	(set! *command-str* str)))
 
 (define (is-cmd? str)
   (and str
