@@ -35,7 +35,8 @@
  ping-handler
  join
  part
- renick)
+ renick
+ say)
 
 (define-record-type <cmd>
   (make-cmd origin name args tail)
@@ -149,6 +150,9 @@
 
 (define (part con chan msg)
   (send-cmd con (make-cmd #f "PART" (list chan) msg)))
+
+(define (say con chan msg)
+  (send-cmd con (make-cmd #f "PRIVMSG" (list chan) msg)))
 
 (define (raw-handler con line)
   (let ((cmd (decode-cmd line)))

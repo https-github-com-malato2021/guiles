@@ -14,26 +14,18 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (core util))
+(define-module (commands botsnack))
 
-(define (assoc-def key lst def)
-  (let ((pair (assoc key lst)))
-    (if pair
-	(cdr pair)
-	def)))
+(use-modules (core util)
+	     (core irc)
+	     (core util))
 
-(define (exit-with-error msg)
-  (let ((port (current-error-port)))
-    (display msg port)
-    (newline port)
-    (quit 1)))
+(define responses
+  '("ki'e"
+    "uiki'e"))
 
-(define (rand-sel lst)
-  (list-ref lst
-	    (inexact->exact
-	     (floor (* (random:uniform)
-		       (length lst))))))
+(define (handle-botsnack con usr chan args)
+  (say con chan (format #f "~a: ~a" (user-nick usr) (rand-sel responses))))
 
-(export assoc-def
-	exit-with-error
-	rand-sel)
+(define hooks
+  `((command-botsnack . ,handle-botsnack)))
