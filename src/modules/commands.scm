@@ -23,32 +23,30 @@
 
 (define *command-str* "`")
 
-(define (extract-cmd msg)
-  (let* ((space-index (string-index msg #\space))
-	 (has-args (and space-index
-			(> (string-length msg) (+ 2 space-index))))
-	 (cmd (substring msg 1 space-index)))
-    (values cmd (if has-args
-		    (substring msg (1+ space-index))
-		    #f))))
+(define (is-cmd? str)
+  (and str
+       (string-prefix? *command-str* str)
+       (< 1 (string-length str))))
 
-(define (msg-handler con cmd)
-  (let*-values (((msg) (cmd-tail cmd))
-		((command args) (extract-cmd msg)))
-    (log 'debug (format #f "Handling ~a ~a" msg (string-prefix? *command-str* msg)))
-    (if (and msg (string-prefix? *command-str* msg))
+(define (parse-cmd str)
+  (let* ((parts (string-split (string-trim-right (substring str (string-length *command-str*)))  #\space))
+	 (cmd (car parts))
+	 (args (cdr parts)))
+    (values cmd args)))
+
+(define (msg-handler con cmd-struct)
+  (when (is-cmd? (cmd-tail cmd-struct))
+	(let-values (((command args) (parse-cmd (cmd-tail cmd-struct))))
 	  (run-event (string->symbol (string-append "command-" command))
-		     (list con
-			   (cmd-origin cmd)
-			   (car (cmd-args cmd))
-			   args))
-	  #f)))
+		     (list con ; connection
+			   (cmd-origin cmd-struct) ; sender
+			   (car (cmd-args cmd-struct)) ; channel
+			   args))))) ; arguments
 
 (define (help-handler con usr chan args)
   (log 'debug (format #f "Calling help handler with ~a ~a ~a" usr chan args))
-  (send-cmd (make-cmd #f "PRIVMSG" (list chan)
-		      (format #f "~a: ko smaji" (user-name usr)))
-	    (caddr con)))
+  (send-cmd con (make-cmd #f "PRIVMSG" (list chan)
+			  (format #f "~a: ko smaji" (user-name usr)))))
 
 (define hooks
   `((irc-command-privmsg . ,msg-handler)

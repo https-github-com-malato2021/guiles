@@ -45,11 +45,12 @@
 	 (exit-with-error "Problem with config, check logs.")))
     (set! *connection* (make-connection host port ssl))
     (map register-module modules)
-    (register (caddr *connection*) nick 2 user-name real-name)
-    (let read-loop ((line (read-line (caddr *connection*))))
-      (when (not (eof-object? line))
-	(begin
-	  (log 'debug (string-append "LINE:" line))
-	  (run-event 'irc-raw (list *connection* line))
-	  (read-loop (read-line (caddr *connection*))))))))
+    (register *connection* nick 2 user-name real-name)
+    (let ((io-port (hash-ref *connection* 'io-port)))
+      (let read-loop ((line (read-line io-port)))
+	(when (not (eof-object? line))
+	      (begin
+		(log 'debug (string-append "LINE:" line))
+		(run-event 'irc-raw (list *connection* line))
+		(read-loop (read-line io-port))))))))
 

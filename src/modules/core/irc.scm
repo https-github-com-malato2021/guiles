@@ -131,19 +131,24 @@
 		   ,@(if tail
 			 (list (string-append ":" tail))
 			 '())))))
-(define (send-cmd cmd port)
-  (display (cmd->string cmd) port)
-  (newline port))
+(define (send-cmd con cmd)
+  (let ((io-port (hash-ref con 'io-port)))
+    (display (cmd->string cmd) io-port)
+    (newline io-port)))
 
-(define (register sock nick mode user-name real-name)
-  (send-cmd (make-cmd #f "NICK" '() nick) sock)
-  (send-cmd (make-cmd #f "USER" (list user-name "1" "0") real-name) sock))
+(define (register con nick mode user-name real-name)
+  (let ((io-port (hash-ref con 'io-port)))
+    (hash-set! con 'nick nick)
+    (hash-set! con 'user-name user-name)
+    (hash-set! con 'real-name real-name)
+    (send-cmd con (make-cmd #f "NICK" '() nick))
+    (send-cmd con (make-cmd #f "USER" (list user-name "1" "0") real-name))))
 
 (define (join con chan)
-  (send-cmd (make-cmd #f "JOIN" (list chan) #f) (caddr con)))
+  (send-cmd con (make-cmd #f "JOIN" (list chan) #f)))
 
 (define (part con chan msg)
-  (send-cmd (make-cmd #f "PART" (list chan) msg) (caddr con)))
+  (send-cmd con (make-cmd #f "PART" (list chan) msg)))
 
 (define (raw-handler con line)
   (let ((cmd (decode-cmd line)))
@@ -159,9 +164,8 @@
 	  #f))))
 
 (define (ping-handler con cmd)
-  (let* ((ping-data (cmd-tail cmd))
-	 (sock (caddr con)))
-    (send-cmd (make-cmd #f "PONG" '() ping-data) sock)))
+  (let ((ping-data (cmd-tail cmd)))
+    (send-cmd con (make-cmd #f "PONG" '() ping-data))))
 
 (define hooks
   `((irc-raw . ,raw-handler)

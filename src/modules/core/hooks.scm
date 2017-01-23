@@ -90,5 +90,4 @@
 (export add-hook
 	remove-hook
 	find-hooks
-	run-event
-	hooks)
+	run-event)
