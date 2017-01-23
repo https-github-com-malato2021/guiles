@@ -55,15 +55,15 @@
   (let* ((options-spec `((version (single-char #\v) (value #f))
                          (help (value #f))
 			 (config-file (single-char #\c) (value #t))
-			 (debug (single-char #\d) (value #f))))
+			 (debug (single-char #\d) (value #t))))
          (options (getopt-long args options-spec))
          (version-wanted (option-ref options 'version #f))
          (help-wanted (option-ref options 'help #f))
-	 (debug (option-ref options 'debug #f))
+	 (socket-path (option-ref options 'debug #f))
          (config-file (option-ref options 'config-file "config.scm"))
 	 (config (load config-file)))
-    (when debug
-	  (spawn-server (make-unix-domain-server-socket #:path "/tmp/guiles.sock")))
+    (when socket-path
+	  (spawn-server (make-unix-domain-server-socket #:path socket-path)))
     (cond
      ((or version-wanted help-wanted)
         (begin
