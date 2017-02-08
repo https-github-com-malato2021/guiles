@@ -18,6 +18,7 @@
 
 (use-modules (ice-9 popen)
 	     (ice-9 rdelim)
+	     (ice-9 ftw)
 	     (core irc))
 
 (export handle-cowsay)
@@ -35,5 +36,19 @@
 	      (say con chan line)
 	      (outloop (read-line pipe)))))))
 
+(define (handle-cows con usr chan args)
+  (when (= (length args) 0)
+    (let ((cow-files (scandir "/usr/share/cows"
+			      (λ (name)
+				(not (string-prefix? "." name))))))
+      (say con chan (format #f "~a: bakni: ~a"
+		       (user-nick usr)
+		       (string-join
+			(map (λ (file)
+			       (substring file 0 (- (string-length file) 4)))
+			     cow-files)))))))
+	 
+
 (define hooks
-  `((command-cowsay . ,handle-cowsay)))
+  `((command-cowsay . ,handle-cowsay)
+    (command-cows . ,handle-cows)))
