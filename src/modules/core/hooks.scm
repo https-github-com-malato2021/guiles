@@ -39,10 +39,6 @@
 (define (find-hooks hook)
   (lock-mutex hook-mutex)
   (let ((found-hooks (filter (λ (hook-list)
-			       (log 'debug (format #f "hook <~a> matches <~a>? ~a"
-						   hook
-						   hook-list
-						   (equal? (cadr hook-list) hook)))
 			       (equal? (cadr hook-list)
 				       hook))
 			     registered-hooks)))
@@ -56,9 +52,6 @@
        (λ ()
 	 (par-map
 	  (λ (hook-list)
-	    (log 'debug (format #f "Hook list: ~a" hook-list))
-	    (log 'debug (format #f "Running: ~a : ~a" (caddr hook-list)
-				   	     	      args))
 	    (apply (caddr hook-list) args))
 	  matching-hooks))
        (λ (key . args)
@@ -66,8 +59,7 @@
 
 (define (handle-register module)
   (let* ((mod (resolve-module module))
-	 (maybe-mod-hooks (module-variable mod 'hooks)))			
-    (log 'debug (format #f "Registering mod ~a, hooks: ~a" mod maybe-mod-hooks))
+	 (maybe-mod-hooks (module-variable mod 'hooks)))
     (when maybe-mod-hooks
 	  (set! registered-hooks (append registered-hooks
 			      (map (λ (hook-pair)
@@ -90,4 +82,5 @@
 (export add-hook
 	remove-hook
 	find-hooks
-	run-event)
+	run-event
+	registered-hooks)

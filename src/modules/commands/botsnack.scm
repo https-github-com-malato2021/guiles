@@ -17,8 +17,7 @@
 (define-module (commands botsnack))
 
 (use-modules (core util)
-	     (core irc)
-	     (core util))
+	     (core irc))
 
 (define responses
   '("ki'e"

@@ -21,7 +21,7 @@
 
 (define (handle-register con usr chan args)
   (when (> (length args) 0)
-    (let* ((module (string->symbol (string-join args)))
+    (let* ((module (map string->symbol args))
 	   (success? (register-module module)))
       (say con
 	   chan
@@ -33,7 +33,7 @@
 	       
 (define (handle-deregister con usr chan args)
   (when (> (length args) 0)
-    (let* ((module (string->symbol (string-join args)))
+    (let* ((module (map string->symbol args))
 	   (success? (deregister-module module)))
       (say con
 	   chan
@@ -43,6 +43,27 @@
 		   (user-nick usr)
 		   module)))))
 
+(define (handle-reload con usr chan args)
+  (when (> (length args 0))
+    (let* ((module (map string->symbol args))
+           (success? (reload-module module)))
+      (say con
+           chan
+           (format #f (if success?
+                          "~a: la ~a cu refkibycpa"
+                          "~a: o'anai lo se refkibycpa ku srera")
+                      (user-nick usr)
+                      module)))))
+
+(define (handle-list con usr chan args)
+  (when (= (length args) 0)
+    (let ((modules (format #f "~a" *modules-loaded*)))
+      (say con chan (format #f "~a: le pa'u cu pagbu: ~a"
+			     (user-nick usr)
+			     modules)))))
+
 (define hooks
   `((command-register . ,handle-register)
-    (command-deregister . ,handle-deregister)))
+    (command-deregister . ,handle-deregister)
+    (command-reload . ,handle-reload)
+    (command-list . ,handle-list)))

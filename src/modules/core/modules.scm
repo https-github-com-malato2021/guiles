@@ -19,6 +19,11 @@
 (use-modules (core hooks)
 	     (core log))
 
+(export register-module
+	deregister-module
+        reload-module
+	*modules-loaded*)
+
 (define *modules-loaded* '())
 
 (define (register-module module)
@@ -44,5 +49,8 @@
 	  #t)
 	#f)))
 
-(export register-module
-	deregister-module)
+(define (reload-module module)
+  (let ((loaded? (member module *modules-loaded*)))
+    (if loaded?
+        (begin (reload-module (resolve-module module)) #t)
+        #f)))

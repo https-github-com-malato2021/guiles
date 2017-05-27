@@ -18,6 +18,7 @@
 
 (use-modules (srfi srfi-9)
 	     (srfi srfi-11)
+	     (srfi srfi-1)
              (core init)
              (core net)
 	     (core log)
@@ -65,10 +66,22 @@
   (time msg-time)
   (text msg-text))
 
+;;; TODO: Modify cmd sending to break the commands into 512 byte
+;;; commands, potentially by breaking it into several commands
+;;; (e.g. in the case of PRIVMSG) or simply trim to 512 bytes
+;;; (or fewer) in the case of most other things
+
 (define (msg-nick msg)
   (if (msg? msg)
       (user-nick (msg-user msg))
       #f))
+
+(define (cmd-overhead cmd)
+  (+ 3
+     (string-length (cmd-name cmd))
+     (fold + 0 (map string-length (cmd-args cmd)))     
+     (- (length (cmd-args cmd)) 1)))
+	   
 
 (define (parse-origin str)
   (if (string-index str #\!)
@@ -132,10 +145,57 @@
 		   ,@(if tail
 			 (list (string-append ":" tail))
 			 '())))))
+
+
+;;; TODO: Fix this to deal with unicode.
+;;;       Currently, it calculcateds string length
+;;;       which is likely number of characters, not bytes
+(define (privmsg-splitter cmd)
+  (let* ((cmd-str (cmd->string cmd))
+	 (size (string-length cmd-str))
+	 (channel (car (cmd-args cmd)))
+	 (overhead (cmd-overhead cmd))
+	 (max-payload (- 500 overhead))
+	 (num-msgs (ceiling (/ size max-payload))))
+    (let split ((cmds '())
+		(str-left (cmd-tail cmd)))
+      (if (= 0 (string-length str-left))
+	  (reverse cmds)
+	  (let* ((str-len (string-length str-left))
+		 (amount-taken (if (< max-payload str-len)
+				   max-payload
+				   str-len))
+		 (tail (substring str-left 0 amount-taken))
+		 (rest (substring str-left amount-taken))
+		 (cmd (make-cmd #f "PRIVMSG"
+				(list channel)
+				tail)))
+	    (split (cons cmd cmds)
+		   rest))))))
+
+(define cmd-splitters
+  `(("PRIVMSG" . ,privmsg-splitter)))
+
+(define (split-cmd cmd)
+  (let ((len (string-length (cmd->string cmd))))
+    (cond
+     ((< len 512)
+      (list cmd))
+     ((assoc (cmd-name cmd) cmd-splitters)
+      ((cdr (assoc (cmd-name cmd) cmd-splitters)) cmd))
+     (else
+      (list (make-cmd #f "PRIVMSG" (cmd-args cmd)
+		      (substring (cmd-tail cmd) (- 512 (cmd-overhead cmd)))))))))
+	 
+   
 (define (send-cmd con cmd)
   (let ((io-port (hash-ref con 'io-port)))
-    (display (cmd->string cmd) io-port)
-    (newline io-port)))
+    (map (λ (cmd)
+	   (log 'debug-as-fuck (format #f "Sending(~a) ~a" (string-length (cmd->string cmd))
+			       cmd))
+	   (display (cmd->string cmd) io-port)
+	   (newline io-port))
+	 (split-cmd cmd))))
 
 (define (register con nick mode user-name real-name)
   (let ((io-port (hash-ref con 'io-port)))
