@@ -10,7 +10,8 @@ Pass the *-d file* flag to ./main.scm to create a domain socket, *file*, which s
 
 Current Features
 ----------------
-
-Ability to join server, and allow access via REPL to reprogram & interact with the bot while running.
+• Ability to join server, and allow access via REPL to reprogram & interact with the bot while running.
 This allows access to the bot's modules, and channels can be joined/left, modules activated, nick changed etc.
+
+• A near-working module system. Run `(register-module '(mymodule))` to cause a module registration event for that module. This is used to add hooks.
 
