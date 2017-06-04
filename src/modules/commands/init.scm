@@ -54,6 +54,12 @@
   (send-cmd con (make-cmd #f "PRIVMSG" (list chan)
 			  (format #f "~a: ko smaji" (user-name usr)))))
 
+(define (quit-handler con usr chan args)
+  (send-cmd con (make-cmd #f "QUIT" '() (if (not (null? args))
+					    (string-join args " ")
+					    #f))))
+
 (define hooks
   `((irc-command-privmsg . ,msg-handler)
+    (command-quit . ,quit-handler)
     (command-help . ,help-handler)))
